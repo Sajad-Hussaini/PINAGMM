@@ -1,0 +1,133 @@
+# PINAGMM: Physics-Informed Neural Additive Ground Motion Model
+
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+**PINAGMM** is a unified multivariate generative framework that bridges the prediction of discrete intensity measures (IMs) with the synthesis of hazard-compatible, three-component stochastic ground motion time-series. 
+
+Developed for performance-based earthquake engineering, this framework uses a Physics-Informed Neural Additive Model (NAM) coupled with Multivariate Mixed-Effects Regression (MMER). It enables the direct conditional simulation of physically coherent synthetic ground motions for prescribed hazard scenarios, completely bypassing the need for artificial time-domain spectral matching.
+
+## Table of Contents
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [1. Median Predictions](#1-median-predictions)
+  - [2. Stochastic Simulation (Unconditional & Conditional)](#2-stochastic-simulation)
+- [Contact & Support](#contact--support)
+- [References](#references)
+
+## Installation
+
+We recommend installing the CPU-only version of PyTorch first to save disk space, followed by this package.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Sajad-Hussaini/PINAGMM.git
+cd PINAGMM
+
+# 2. Install CPU-only PyTorch
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# 3. Install PINAGMM and dependencies (sgsim, mmer, etc.)
+pip install .
+```
+
+
+## Quick Start  
+
+### 1. Median Predictions  
+
+The `PINAGMM` class generates the median physical scaling for both Intensity Measures (PGA, PGV, Sa) and the underlying parameters governing the stochastic simulation (Energy, Duration, Frequencies).
+
+```python
+from pinagmm import PINAGMM
+
+# Initialize the model
+model = PINAGMM()
+
+# Predict median parameters for a specific earthquake scenario
+predictions = model.predict(Mw=6.5, Ztor=1.0, Rrup=25.0, Vs30=560.0, Fm="0")
+
+print(predictions[["PGA", "Sa(T=1)", "PGV"]])
+```
+
+> 💡 **Tip:** We highly recommend checking out the `example/example.py` file in this repository. It is a fully functional script that demonstrates how to generate predictions, save them to CSV files, and use `matplotlib` to plot and save Attenuation Curves!
+
+### 2. Stochastic Simulation
+
+The true power of this framework lies in the generative engine, which leverages the learned inter-parameter covariance matrix to generate realistic 3-component acceleration time-series seamlessly.
+
+The model provides two completely independent layers of statistical generation natively through the `simulate()` method:
+1. `n_samples`: The number of macroscopic parameter sets to sample from the underlying neural GMM's covariance matrix.
+2. `n_simulations`: The number of discrete time-series realizations to generate for *each* parameter set using the stochastic simulation engine.
+
+#### 1. Unconditional Simulation (Median vs Sampled)
+Generate physically consistent ground motions based purely on the macroscopic earthquake scenario. 
+
+```python
+from pinagmm import PINAGMM
+
+# Initialize the model
+gmm = PINAGMM()
+
+# Example A: 5 Stochastic Realizations using the exact Median GMM prediction
+ts_m_med, ts_i_med, ts_v_med = gmm.simulate(
+    Mw=6.5,
+    Ztor=1.0,
+    Rrup=25.0,
+    Vs30=560.0,
+    Fm="0",
+    n_samples=0,  # 0 = Use the median GMM prediction
+    n_simulations=5,  # 5 time-series realizations
+)
+
+# Example B: 10 Parameter Samples from the GMM, 1 Stochastic Realization each
+ts_m_list, ts_i_list, ts_v_list = gmm.simulate(
+    Mw=6.5,
+    Ztor=1.0,
+    Rrup=25.0,
+    Vs30=560.0,
+    Fm="0",
+    n_samples=10,  # Sample 10 unique parameter conditions from the Neural NAM
+    n_simulations=1,  # 1 time-series realization per parameter set
+)
+```
+
+#### 2. Conditional Simulation (Hazard-Targeting)
+
+Mathematically condition the generative model to match a specific hazard target (e.g., forcing Spectral Acceleration at 1.0s to +2 Standard Deviations). The framework automatically adjusts all other correlated IMs and physical simulation parameters across all three principal axes to physically justify the target.  
+
+```python
+# Condition the target IM to +2 Sigma
+target_conditions = {"M_Sa_1": 2.0}
+
+ts_m_cond, ts_i_cond, ts_v_cond = gmm.simulate(
+    Mw=6.5,
+    Ztor=1.0,
+    Rrup=25.0,
+    Vs30=560.0,
+    Fm="0",
+    conditions=target_conditions,
+    n_samples=10,  # 10 conditioned samples
+    n_simulations=1,
+)
+```
+
+## Contact & Support
+
+For any questions, assistance, or suggestions, please feel free to contact:
+
+**S. M. Sajad Hussaini**  
+📧 [hussaini.smsajad@gmail.com](mailto:hussaini.smsajad@gmail.com)
+
+> Please include "PINAGMM" in the subject line for a quicker response.
+
+
+## References
+
+If you use this model in your research, please cite the underlying research paper:
+
+
+**[1] Primary Reference**  
+*A Physics-Informed Neural Additive Ground Motion Model for Hazard-Compatible Three-Component Stochastic Simulation*  
+*DOI: to be added later*  
+(Journal to be added later)
