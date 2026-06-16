@@ -92,7 +92,12 @@ class PINAGMM:
         X_processed = self.preprocessor_x.transform(df_input)
 
         # Original unconditional median and covariance
+        # Ensure mu is strictly 2D: (N, D)
         mu = self.model.predict(X_processed).value.squeeze()
+        if mu.ndim == 1:
+            mu = np.atleast_2d(mu)
+        
+        N, D = mu.shape
         marg_cov = self.model.marginal_cov().value
 
         if conditions:
@@ -105,11 +110,11 @@ class PINAGMM:
                 fixed_values_physical, indices=fixed_indices
             )
 
-            d = len(mu)
-            free_idx = np.setdiff1d(np.arange(d), fixed_indices)
+            free_idx = np.setdiff1d(np.arange(D), fixed_indices)
 
-            mu_f = mu[fixed_indices]
-            mu_r = mu[free_idx]
+            mu_f = mu[:, fixed_indices]
+            mu_r = mu[:, free_idx]
+            
             Sigma_ff = marg_cov[np.ix_(fixed_indices, fixed_indices)]
             Sigma_fr = marg_cov[np.ix_(fixed_indices, free_idx)]
             Sigma_rf = marg_cov[np.ix_(free_idx, fixed_indices)]
@@ -117,35 +122,49 @@ class PINAGMM:
 
             # Compute conditional mean and covariance
             delta = fixed_values_scaled - mu_f
-            cond_mean_r = mu_r + Sigma_rf @ np.linalg.solve(Sigma_ff, delta)
+            
+            # cond_mean_r: (N, len(free_idx))
+            cond_mean_r = mu_r + (Sigma_rf @ np.linalg.solve(Sigma_ff, delta.T)).T
+            
             cond_cov_rr = Sigma_rr - Sigma_rf @ np.linalg.solve(Sigma_ff, Sigma_fr)
             cond_cov_rr = 0.5 * (cond_cov_rr + cond_cov_rr.T)  # ensure symmetry
 
-            full_cond_mean = np.empty(d, dtype=float)
-            full_cond_mean[fixed_indices] = fixed_values_scaled
-            full_cond_mean[free_idx] = cond_mean_r
+            full_cond_mean = np.empty((N, D), dtype=float)
+            full_cond_mean[:, fixed_indices] = fixed_values_scaled
+            full_cond_mean[:, free_idx] = cond_mean_r
 
             if n_sample > 0:
-                free_samples = rng.multivariate_normal(
-                    cond_mean_r, cond_cov_rr, size=n_sample
+                base_samples = rng.multivariate_normal(
+                    np.zeros(len(free_idx)), cond_cov_rr, size=(N, n_sample)
                 )
-                samples_scaled = np.empty((n_sample, d), dtype=float)
-                samples_scaled[:, fixed_indices] = fixed_values_scaled
-                samples_scaled[:, free_idx] = free_samples
+                free_samples = base_samples + cond_mean_r[:, None, :]
+                
+                samples_scaled = np.empty((N, n_sample, D), dtype=float)
+                samples_scaled[:, :, fixed_indices] = fixed_values_scaled
+                samples_scaled[:, :, free_idx] = free_samples
 
-                combined = np.vstack((full_cond_mean, samples_scaled))
+                combined = np.concatenate((full_cond_mean[:, None, :], samples_scaled), axis=1)
+                combined = combined.reshape(-1, D)
             else:
-                combined = np.atleast_2d(full_cond_mean)
+                combined = full_cond_mean
         else:
             if n_sample > 0:
-                samples = rng.multivariate_normal(mu, marg_cov, size=n_sample)
-                combined = np.vstack((mu, samples))
+                base_samples = rng.multivariate_normal(np.zeros(D), marg_cov, size=(N, n_sample))
+                samples = base_samples + mu[:, None, :]
+                combined = np.concatenate((mu[:, None, :], samples), axis=1)
+                combined = combined.reshape(-1, D)
             else:
-                combined = np.atleast_2d(mu)
+                combined = mu
 
         # Convert back to physical values
         physical_pred = np.exp(self.scaler_y.inverse_transform(combined))
-        return pd.DataFrame(physical_pred, columns=yvars)
+        df_pred = pd.DataFrame(physical_pred, columns=yvars)
+        
+        # Attach the input scenario features so the user knows which row belongs to which scenario
+        repeats = 1 + n_sample if n_sample > 0 else 1
+        df_input_repeated = df_input.loc[df_input.index.repeat(repeats)].reset_index(drop=True)
+        
+        return pd.concat([df_input_repeated, df_pred], axis=1)
 
     def extract_components(self, phys_array, dt: float = 0.005):
         """
@@ -284,7 +303,7 @@ class PINAGMM:
         )
 
         if n_samples == 0:
-            sample_phys = df_pred.iloc[0].values
+            sample_phys = df_pred[yvars].iloc[0].values
             m_params, i_params, v_params, _, _, _ = self.extract_components(
                 sample_phys, dt=dt
             )
@@ -305,7 +324,7 @@ class PINAGMM:
 
             # Row 0 is the median/mean. Row 1 to n_samples are the samples.
             for row in range(1, n_samples + 1):
-                sample_phys = df_pred.iloc[row].values
+                sample_phys = df_pred[yvars].iloc[row].values
                 m_params, i_params, v_params, _, _, _ = self.extract_components(
                     sample_phys, dt=dt
                 )
