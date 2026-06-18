@@ -2,6 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/1241585595.svg)](https://doi.org/10.5281/zenodo.20746843)
 
 **PINAGMM** is a unified multivariate generative framework that bridges the prediction of discrete intensity measures (IMs) with the synthesis of hazard-compatible, three-component stochastic ground motion time-series. 
 
