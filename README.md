@@ -130,4 +130,4 @@ If you use this model in your research, please cite the underlying research pape
 **[1] Primary Reference**  
 *A Physics-Informed Neural Additive Ground Motion Model for Hazard-Compatible Three-Component Stochastic Simulation*  
 *DOI: to be added later*  
-(Journal to be added later)
+(Journal of Earthquake Engineering & Structural Dynamics)
