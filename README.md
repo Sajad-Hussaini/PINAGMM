@@ -97,8 +97,8 @@ ts_m_list, ts_i_list, ts_v_list = gmm.simulate(
 Mathematically condition the generative model to match a specific hazard target (e.g., forcing Spectral Acceleration at 1.0s to +2 Standard Deviations). The framework automatically adjusts all other correlated IMs and physical simulation parameters across all three principal axes to physically justify the target.  
 
 ```python
-# Condition the target IM to +2 Sigma
-target_conditions = {"M_Sa_1": 2.0}
+# Condition the target IM to 0.9 g
+target_conditions = {"M_Sa_1": 0.9}
 
 ts_m_cond, ts_i_cond, ts_v_cond = gmm.simulate(
     Mw=6.5,

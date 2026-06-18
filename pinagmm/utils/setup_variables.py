@@ -262,6 +262,12 @@ periods = [
     4.0,
 ]
 
+dtype_mapping = {
+    "Earthquake Name": "str",
+    "Station Name": "str",
+    "Mechanism Based on Rake Angle": "str",
+    **{var: "float" for var in xnumeric},
+}
 
 col_ids = {
     "Mw": 0,
@@ -300,17 +306,38 @@ group_definitions = [
         + col_ids["spread_indices"],
         "mono_in": [col_ids["Mw"], col_ids["Rrup"]],
         "signs": [1.0, 1.0],
+        "interactions": [
+            {
+                "features": [col_ids["Mw"], col_ids["Rrup"]],
+                "monotonic": True,
+                "signs": [1.0, 1.0],
+            }
+        ],
     },
     {
         "name": "Freq_Lower",
         "out_idx": col_ids["wl_indices"],
         "mono_in": [col_ids["Mw"], col_ids["Rrup"]],
         "signs": [-1.0, -1.0],
+        "interactions": [
+            {
+                "features": [col_ids["Mw"], col_ids["Rrup"]],
+                "monotonic": True,
+                "signs": [-1.0, -1.0],
+            }
+        ],
     },
     {
         "name": "Freq_Upper",
         "out_idx": col_ids["wu_indices"],
         "mono_in": [col_ids["Mw"], col_ids["Rrup"]],
         "signs": [-1.0, -1.0],
+        "interactions": [
+            {
+                "features": [col_ids["Mw"], col_ids["Rrup"]],
+                "monotonic": True,
+                "signs": [-1.0, -1.0],
+            }
+        ],
     },
 ]

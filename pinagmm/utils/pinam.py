@@ -58,19 +58,15 @@ class PureAdditiveNetwork(nn.Module):
     ):
         super().__init__()
 
-        self.mono_nets = nn.ModuleList(
-            [
-                SubNetwork(1, out_dim, hidden_layers, dropout, is_monotonic=True)
-                for _ in range(mono_in_dim)
-            ]
-        )
+        self.mono_nets = nn.ModuleList([
+            SubNetwork(1, out_dim, hidden_layers, dropout, is_monotonic=True)
+            for _ in range(mono_in_dim)
+        ])
 
-        self.free_nets = nn.ModuleList(
-            [
-                SubNetwork(1, out_dim, hidden_layers, dropout, is_monotonic=False)
-                for _ in range(free_in_dim)
-            ]
-        )
+        self.free_nets = nn.ModuleList([
+            SubNetwork(1, out_dim, hidden_layers, dropout, is_monotonic=False)
+            for _ in range(free_in_dim)
+        ])
 
         self.interactions = interactions or []
         self.interaction_nets = nn.ModuleList()
@@ -247,6 +243,9 @@ class SingleGroupGMM:
 
         # Training loop
         epochs = self.config.get("epochs", 5)
+        train_tol = self.config.get("train_tol", 1e-4)
+        prev_loss = float("inf")
+
         for _ in range(epochs):
             self._arch.train()
 
@@ -261,7 +260,8 @@ class SingleGroupGMM:
                 return loss
 
             loss_value = optimizer.step(closure)
-            self.train_loss_history.append(loss_value.item())
+            current_loss = loss_value.item()
+            self.train_loss_history.append(current_loss)
 
             if has_val:
                 self._arch.eval()
@@ -279,6 +279,12 @@ class SingleGroupGMM:
                     patience_ctr += 1
                     if patience_ctr >= patience:
                         break
+            else:
+                # Early stopping based on training loss when validation is not available
+                if abs(prev_loss - current_loss) < train_tol:
+                    break
+
+            prev_loss = current_loss
 
         # Restore best-validation-loss weights
         if has_val and best_state is not None:

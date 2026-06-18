@@ -21,7 +21,7 @@ class PINAGMM:
         model_dir = Path(__file__).resolve().parent.parent / "model"
         self.preprocessor_x = joblib.load(model_dir / "preprocessor_x.joblib")
         self.scaler_y = joblib.load(model_dir / "scaler_y.joblib")
-        self.model = joblib.load(model_dir / "ensemble_pinam.joblib")
+        self.model = joblib.load(model_dir / "newensemble_pinam.joblib")
 
     def scenario(self, Mw, Ztor, Rrup, Vs30, Fm="0"):
         Mw, Ztor, Rrup, Vs30, Fm = np.broadcast_arrays(Mw, Ztor, Rrup, Vs30, Fm)
@@ -96,7 +96,7 @@ class PINAGMM:
         mu = self.model.predict(X_processed).value.squeeze()
         if mu.ndim == 1:
             mu = np.atleast_2d(mu)
-        
+
         N, D = mu.shape
         marg_cov = self.model.marginal_cov().value
 
@@ -114,7 +114,7 @@ class PINAGMM:
 
             mu_f = mu[:, fixed_indices]
             mu_r = mu[:, free_idx]
-            
+
             Sigma_ff = marg_cov[np.ix_(fixed_indices, fixed_indices)]
             Sigma_fr = marg_cov[np.ix_(fixed_indices, free_idx)]
             Sigma_rf = marg_cov[np.ix_(free_idx, fixed_indices)]
@@ -122,10 +122,10 @@ class PINAGMM:
 
             # Compute conditional mean and covariance
             delta = fixed_values_scaled - mu_f
-            
+
             # cond_mean_r: (N, len(free_idx))
             cond_mean_r = mu_r + (Sigma_rf @ np.linalg.solve(Sigma_ff, delta.T)).T
-            
+
             cond_cov_rr = Sigma_rr - Sigma_rf @ np.linalg.solve(Sigma_ff, Sigma_fr)
             cond_cov_rr = 0.5 * (cond_cov_rr + cond_cov_rr.T)  # ensure symmetry
 
@@ -138,18 +138,22 @@ class PINAGMM:
                     np.zeros(len(free_idx)), cond_cov_rr, size=(N, n_sample)
                 )
                 free_samples = base_samples + cond_mean_r[:, None, :]
-                
+
                 samples_scaled = np.empty((N, n_sample, D), dtype=float)
                 samples_scaled[:, :, fixed_indices] = fixed_values_scaled
                 samples_scaled[:, :, free_idx] = free_samples
 
-                combined = np.concatenate((full_cond_mean[:, None, :], samples_scaled), axis=1)
+                combined = np.concatenate(
+                    (full_cond_mean[:, None, :], samples_scaled), axis=1
+                )
                 combined = combined.reshape(-1, D)
             else:
                 combined = full_cond_mean
         else:
             if n_sample > 0:
-                base_samples = rng.multivariate_normal(np.zeros(D), marg_cov, size=(N, n_sample))
+                base_samples = rng.multivariate_normal(
+                    np.zeros(D), marg_cov, size=(N, n_sample)
+                )
                 samples = base_samples + mu[:, None, :]
                 combined = np.concatenate((mu[:, None, :], samples), axis=1)
                 combined = combined.reshape(-1, D)
@@ -159,11 +163,13 @@ class PINAGMM:
         # Convert back to physical values
         physical_pred = np.exp(self.scaler_y.inverse_transform(combined))
         df_pred = pd.DataFrame(physical_pred, columns=yvars)
-        
+
         # Attach the input scenario features so the user knows which row belongs to which scenario
         repeats = 1 + n_sample if n_sample > 0 else 1
-        df_input_repeated = df_input.loc[df_input.index.repeat(repeats)].reset_index(drop=True)
-        
+        df_input_repeated = df_input.loc[df_input.index.repeat(repeats)].reset_index(
+            drop=True
+        )
+
         return pd.concat([df_input_repeated, df_pred], axis=1)
 
     def extract_components(self, phys_array, dt: float = 0.005):
