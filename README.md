@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![DOI](https://zenodo.org/badge/1241585595.svg)](https://doi.org/10.5281/zenodo.20746843)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20746843.svg)](https://doi.org/10.5281/zenodo.20746843)
 
 **PINAGMM** is a unified multivariate generative framework that bridges the prediction of discrete intensity measures (IMs) with the synthesis of hazard-compatible, three-component stochastic ground motion time-series. 
 
@@ -132,3 +132,9 @@ If you use this model in your research, please cite the underlying research pape
 *A Physics-Informed Neural Additive Ground Motion Model for Hazard-Compatible Three-Component Stochastic Simulation*  
 *DOI: to be added later*  
 (Journal of Earthquake Engineering & Structural Dynamics)
+
+
+**[2] PINAGMM Package**  
+*Physics-Informed Neural Additive Ground Motion Model*  
+*DOI: [https://doi.org/10.5281/zenodo.18068839](https://doi.org/10.5281/zenodo.20746843)*  
+
