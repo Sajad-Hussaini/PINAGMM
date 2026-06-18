@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pinagmm import PINAGMM
 
+
 def main():
     print("Loading PINAGMM...")
     gmm = PINAGMM()
@@ -16,20 +17,22 @@ def main():
         Vs30=560.0,
         Fm="0",
         dt=0.005,
-        n_samples=0,        # Use strictly the median GMM prediction
-        n_simulations=5,    # Generate 5 stochastic realizations
+        n_samples=0,  # Use strictly the median GMM prediction
+        n_simulations=5,  # Generate 5 stochastic realizations
     )
 
     # -------------------------------------------------------------------------
     # Visualization 1: Time Series (Acceleration, Velocity, Displacement)
     # -------------------------------------------------------------------------
     print("\n--- Visualizing 3-Component Time Series ---")
-    
+
     # Scale factor to convert acceleration from 'g' to 'cm/s^2'
     # (The underlying sgsim package natively integrates acceleration to get vel/disp in these scaled units)
     scale = 980.665
 
-    fig, axes = plt.subplots(3, 3, sharex="col", sharey="row", figsize=(12, 6), constrained_layout=True)
+    fig, axes = plt.subplots(
+        3, 3, sharex="col", sharey="row", figsize=(12, 6), constrained_layout=True
+    )
 
     comps = [
         ("Major", ts_m_med, "tab:blue"),
@@ -49,7 +52,7 @@ def main():
         for row, (metric, ylabel, scale_factor) in enumerate(metrics):
             ax = axes[row, col]
 
-            # Extract the raw simulation array. 
+            # Extract the raw simulation array.
             # Note: sim.ac, sim.vel, sim.disp are typically shaped (n_simulations, npts)
             # We transpose it to (npts, n_simulations) for easy plotting against the time vector.
             data = getattr(sim, metric)
@@ -86,12 +89,12 @@ def main():
     # Visualization 2: Target Conditioning (Conditional Mean Spectra)
     # -------------------------------------------------------------------------
     print("\n--- Visualizing Conditional Hazard Targeting ---")
-    
+
     # Let's say we want a high-hazard scenario where the Major Component's
     # PGA (M_PGV) or Spectral Acceleration at 1.0s is specifically 0.9g.
     target_conditions = {"M_Sa_1": 0.9}
 
-    # Generate conditioned samples. The ML model automatically adjusts all other 
+    # Generate conditioned samples. The ML model automatically adjusts all other
     # intensity measures and physical parameters to physically justify this specific target.
     ts_m_cond, ts_i_cond, ts_v_cond = gmm.simulate(
         Mw=6.5,
@@ -101,38 +104,48 @@ def main():
         Fm="0",
         dt=0.005,
         conditions=target_conditions,
-        n_samples=50,       # 50 conditioned parameter sets from the GMM
-        n_simulations=1,    # 1 stochastic realization per set
+        n_samples=5,  # 5 conditioned parameter sets from the GMM
+        n_simulations=1,  # 1 stochastic realization per set
     )
-    
-    # Calculate Response Spectra for the 50 conditioned simulations
+
+    # Calculate Response Spectra for the 5 conditioned simulations
     periods_val = np.logspace(-2, 1, 50)
-    
+
     # (ts_m_cond is a list of GroundMotion objects because n_samples > 1)
-    sa_cond_m = np.zeros((50, len(periods_val)))
+    sa_cond_m = np.zeros((5, len(periods_val)))
     for i, sim_realization in enumerate(ts_m_cond):
         _, _, sa = sim_realization.response_spectra(periods_val)
         sa_cond_m[i] = sa.flatten()
-        
+
     plt.figure(figsize=(7, 5))
-    
+
     # Plot the full ensemble cloud
     plt.loglog(periods_val, sa_cond_m.T, color="tab:blue", lw=0.2, alpha=0.2)
-    
+
     # Plot the median of the conditioned cloud
-    sim_p50 = np.percentile(sa_cond_m, 50, axis=0)
-    plt.loglog(periods_val, sim_p50, color="k", linewidth=1.5, label="Median Conditional Sa")
-    
+    sim_p50 = np.percentile(sa_cond_m, 5, axis=0)
+    plt.loglog(
+        periods_val, sim_p50, color="k", linewidth=1.5, label="Median Conditional Sa"
+    )
+
     # Plot the specific condition we demanded
-    plt.plot([1.0], [0.9], marker='*', color='red', markersize=15, label="User Target (0.9g at 1.0s)")
-    
+    plt.plot(
+        [1.0],
+        [0.9],
+        marker="*",
+        color="red",
+        markersize=15,
+        label="User Target (0.9g at 1.0s)",
+    )
+
     plt.xlabel("Period (s)")
     plt.ylabel("Spectral Acceleration (g)")
-    plt.title("Conditional Mean Spectra (Targeting 0.9g at 1.0s)")
+    plt.title("Conditional Mean Spectra (Targeting 0.9g at 1.0s) (No Exact Match)")
     plt.grid(True, which="both", ls="--", alpha=0.5)
     plt.legend()
     plt.savefig("conditional_spectra_target.png", dpi=300, bbox_inches="tight")
     print("Saved 'conditional_spectra_target.png'")
+
 
 if __name__ == "__main__":
     main()
