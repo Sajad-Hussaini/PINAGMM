@@ -123,7 +123,7 @@ def main():
     plt.loglog(periods_val, sa_cond_m.T, color="tab:blue", lw=0.2, alpha=0.2)
 
     # Plot the median of the conditioned cloud
-    sim_p50 = np.percentile(sa_cond_m, 5, axis=0)
+    sim_p50 = np.percentile(sa_cond_m, 50, axis=0)
     plt.loglog(
         periods_val, sim_p50, color="k", linewidth=1.5, label="Median Conditional Sa"
     )
